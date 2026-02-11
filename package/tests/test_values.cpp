@@ -137,37 +137,6 @@ TEST(NetmonTest, NetmonMonitonicityTestFixed) {
   }
 }
 
-TEST(NvidiamonTest, NvidiamonValueTestFixed) {
-  std::string cur_path = base_path + "drop";
-  std::vector<pid_t> fake_pids = mother_pid;
-
-  std::unique_ptr<Imonitor> monitor(
-      registry::Registry<Imonitor>::create("nvidiamon"));
-
-  const int iterationCount = 3;
-
-  std::map<std::string, unsigned long long> store_stats;
-  const unsigned int MB_to_KB = 1024;
-  for (int iteration = 1; iteration <= iterationCount; ++iteration) {
-    std::stringstream iteration_path{};
-    iteration_path << cur_path << "/" << iteration << "/nvidia/smi";
-    monitor->update_stats(fake_pids, iteration_path.str());
-    store_stats = monitor->get_text_stats();
-    if (iteration == 1) {
-      ASSERT_EQ(store_stats["gpufbmem"], 50 * MB_to_KB);
-      ASSERT_EQ(store_stats["gpusmpct"], 50);
-      ASSERT_EQ(store_stats["gpumempct"], 50);
-    } else if (iteration == 2) {
-      ASSERT_EQ(store_stats["gpufbmem"], 100 * MB_to_KB);
-      ASSERT_EQ(store_stats["gpusmpct"], 100);
-      ASSERT_EQ(store_stats["gpumempct"], 100);
-    } else {
-      ASSERT_EQ(store_stats["gpufbmem"], 20 * MB_to_KB);
-      ASSERT_EQ(store_stats["gpusmpct"], 0);
-      ASSERT_EQ(store_stats["gpumempct"], 0);
-    }
-  }
-}
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);

@@ -1,5 +1,6 @@
 // Copyright (C) 2020-2025 CERN
-//
+// License Apache2 - see LICENCE file
+
 // NVIDIA GPU monitoring class
 //
 
@@ -19,8 +20,6 @@
 
 class nvidiamon final : public Imonitor, public MessageBase { 
  private:
-  // const static std::vector<std::string> default_nvidia_params{
-  //   "ngpus", "gpusmpct", "gpumempct", "gpufbmem"};
   const prmon::parameter_list params = {{"ngpus", "1", "1"},
                                         {"gpusmpct", "%", "%"},
                                         {"gpumempct", "%", "%"},
@@ -34,7 +33,7 @@ class nvidiamon final : public Imonitor, public MessageBase {
   bool valid;
 
   // Count GPUs on the system
-  static unsigned int ngpus;
+  unsigned int ngpus;
   
   // Test if nvml is available
   bool init_nvml();
@@ -46,12 +45,12 @@ class nvidiamon final : public Imonitor, public MessageBase {
   // Max number of samples to take
   const unsigned int max_samples = 100;
 
-  // Conversion from  B to kB for (this is to be more consistent with other
+  // Conversion from Bytes to kB (this is to be more consistent with other
   // memory units in prmon)
   const unsigned int B_to_KB = 1024; 
 
   // Last seen timestamp
-  unsigned long long last_seen_timestamp = 0;
+  unsigned long long last_seen_timestamp;
 
  public:
   nvidiamon();
