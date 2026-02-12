@@ -94,6 +94,8 @@ if(ENABLE_NVIDIA_GPU)
       /usr/lib/x86_64-linux-gnu
       /usr/lib64
       /usr/lib
+      /usr/lib64-nvidia
+      /usr/lib/nvidia
       /usr/local/cuda/lib64
       /usr/local/cuda/lib
       /usr/lib/wsl/lib  
