@@ -12,6 +12,7 @@
 
 #define MONITOR_NAME "nvidiamon"
 
+// Constructor; uses RAII pattern to be valid after construction
 nvidiamon::nvidiamon() {
   log_init(MONITOR_NAME);
 #undef MONITOR_NAME
@@ -19,6 +20,8 @@ nvidiamon::nvidiamon() {
     nvidia_stats.emplace(param.get_name(), prmon::monitored_value(param));
   }
 
+  // Attempt to initialize NVML
+  // If this works we are valid, but if not then we can't get data
   valid = init_nvml();
   last_seen_timestamp = 0;
   
@@ -28,10 +31,11 @@ nvidiamon::nvidiamon() {
   }
 }
 
+// Destructor; shuts down NVML if it was initialized
 nvidiamon::~nvidiamon() {
   if (valid) {
     nvmlReturn_t result = nvmlShutdown();
-    if(result != NVML_SUCCESS){ 
+    if (result != NVML_SUCCESS){ 
       warning("nvmlShutdown was not successfully finished");
     }
   }
@@ -60,6 +64,7 @@ void nvidiamon::update_stats(const std::vector<pid_t>& pids, const std::string r
     if (result == NVML_ERROR_INSUFFICIENT_SIZE) {
       warning("Utilization sample buffer size (" + std::to_string(max_samples) + 
               ") exceeded. Consider increasing max_samples.");
+      util_count = max_samples;
     }
 
     if (result != NVML_SUCCESS && result != NVML_ERROR_NOT_FOUND
@@ -75,7 +80,15 @@ void nvidiamon::update_stats(const std::vector<pid_t>& pids, const std::string r
 
     unsigned int mem_count = max_samples;
     result = nvmlDeviceGetComputeRunningProcesses(device, &mem_count, memory_info.data());
-    if (result != NVML_SUCCESS && result != NVML_ERROR_NOT_FOUND) {
+
+    if (result == NVML_ERROR_INSUFFICIENT_SIZE) {
+      warning("Memory sample buffer size (" + std::to_string(max_samples) + 
+              ") exceeded. Consider increasing max_samples.");
+      mem_count = max_samples;
+    }
+
+    if (result != NVML_SUCCESS && result != NVML_ERROR_NOT_FOUND
+        && result != NVML_ERROR_INSUFFICIENT_SIZE) {
       continue;
     }
 
@@ -135,6 +148,7 @@ prmon::monitored_average_map const nvidiamon::get_json_average_stats(
   return nvidia_stat_map;
 }
 
+// Initialize NVML
 bool nvidiamon::init_nvml() {
   nvmlReturn_t result = nvmlInit();
   
@@ -209,6 +223,7 @@ void const nvidiamon::get_hardware_info(nlohmann::json& hw_json) {
   }
   return;
 }
+
 
 void const nvidiamon::get_unit_info(nlohmann::json& unit_json) {
   prmon::fill_units(unit_json, params);
