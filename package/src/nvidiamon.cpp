@@ -49,8 +49,9 @@ void nvidiamon::update_stats(const std::vector<pid_t>& pids, const std::string r
   nvmlReturn_t result;
 
   unsigned long long current_max_timestamp = last_seen_timestamp;
+  unsigned int active_gpus{0};
 
-  for (unsigned int gpu_idx = 0; gpu_idx < ngpus; ++gpu_idx) {
+  for (unsigned int gpu_idx{0}; gpu_idx < ngpus; ++gpu_idx) {
     nvmlDevice_t device;
     result = nvmlDeviceGetHandleByIndex(gpu_idx, &device);
     if (result != NVML_SUCCESS) {
@@ -78,7 +79,7 @@ void nvidiamon::update_stats(const std::vector<pid_t>& pids, const std::string r
       continue;
     }
 
-    for (unsigned int i = 0; i < util_count; ++i) {
+    for (unsigned int i{0}; i < util_count; ++i) {
       if (utilization[i].timeStamp > current_max_timestamp) {
         current_max_timestamp = utilization[i].timeStamp;
       }
@@ -103,27 +104,35 @@ void nvidiamon::update_stats(const std::vector<pid_t>& pids, const std::string r
       continue;
     }
 
+    bool gpu_is_active{false};
+
     for (unsigned int target_pid : pids) {
-      for (unsigned int i = 0; i < util_count; ++i) {
+      for (unsigned int i{0}; i < util_count; ++i) {
         if (utilization[i].pid == target_pid) {
           nvidia_stats_update["gpusmpct"] += utilization[i].smUtil;
           nvidia_stats_update["gpumempct"] += utilization[i].memUtil;
+          gpu_is_active = true;
           break;
         }
       }
 
-      for (unsigned int i = 0; i < mem_count; ++i) {
+      for (unsigned int i{0}; i < mem_count; ++i) {
         if (memory_info[i].pid == target_pid) {
           nvidia_stats_update["gpufbmem"] += (memory_info[i].usedGpuMemory / B_to_KB);
+          gpu_is_active = true;
           break;
         }
       }
+    }
+
+    if (gpu_is_active) {
+      active_gpus++;
     }
   }
 
   last_seen_timestamp = current_max_timestamp;
 
-  nvidia_stats_update["ngpus"] = ngpus;
+  nvidia_stats_update["ngpus"] = active_gpus;
   for (auto& value : nvidia_stats) {
     if (nvidia_stats_update.count(value.first)) {
       value.second.set_value(nvidia_stats_update[value.first]);
@@ -190,15 +199,15 @@ prmon::parameter_list const nvidiamon::get_parameter_list() { return params; }
 // Collect related hardware information
 void const nvidiamon::get_hardware_info(nlohmann::json& hw_json) {
   hw_json["HW"]["gpu"]["nGPU"] = ngpus;
-  for (unsigned int i = 0; i < ngpus; ++i) {
+  for (unsigned int i{0}; i < ngpus; ++i) {
     nvmlDevice_t device;
     nvmlReturn_t result;
     nvmlMemory_t memInfo;
 
-    char name[NVML_DEVICE_NAME_BUFFER_SIZE] = {};
+    char name[NVML_DEVICE_NAME_BUFFER_SIZE] = {}; // NVML requires a char array
 
-    unsigned int sm_freq = 0;
-    unsigned long long total_mem = 0;
+    unsigned int sm_freq{0};
+    unsigned long long total_mem{0};
 
     result = nvmlDeviceGetHandleByIndex(i, &device);
     if (result != NVML_SUCCESS) {
