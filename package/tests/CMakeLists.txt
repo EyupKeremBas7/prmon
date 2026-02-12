@@ -48,7 +48,6 @@ if (BUILD_GTESTS)
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpumon.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/memmon.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/netmon.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/../src/nvidiamon.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/iomon.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/utils.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/MessageBase.cpp
@@ -81,7 +80,6 @@ if (BUILD_GTESTS)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpumon.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/memmon.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/netmon.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../src/nvidiamon.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/iomon.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/MessageBase.cpp
@@ -111,6 +109,22 @@ if (BUILD_GTESTS)
     )
     add_test(NAME testFieldsAll COMMAND test_fields)
     add_test(NAME testFieldsSomeDisabled COMMAND test_fields --disable netmon --disable cpumon)
+
+    # Link NVML to test targets (nvidiamon.cpp requires it)
+    if(ENABLE_NVIDIA_GPU)
+      target_sources(test_values PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src/nvidiamon.cpp)
+      target_compile_definitions(test_values PRIVATE PRMON_NVIDIA_GPU)
+
+      target_sources(test_fields PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src/nvidiamon.cpp)
+      target_compile_definitions(test_fields PRIVATE PRMON_NVIDIA_GPU)
+    endif()
+
+    if(ENABLE_NVIDIA_GPU AND NVML_FOUND)
+      target_include_directories(test_values PRIVATE ${NVIDIA_INCLUDE_DIRS})
+      target_link_libraries(test_values PRIVATE ${NVIDIA_LIBRARIES})
+      target_include_directories(test_fields PRIVATE ${NVIDIA_INCLUDE_DIRS})
+      target_link_libraries(test_fields PRIVATE ${NVIDIA_LIBRARIES})
+    endif()
 
 endif()
 

@@ -9,8 +9,11 @@ add_executable(prmon src/prmon.cpp
            src/countmon.cpp
            src/wallmon.cpp
            src/memmon.cpp
-           src/nvidiamon.cpp
            )
+
+if(ENABLE_NVIDIA_GPU)
+  target_sources(prmon PRIVATE src/nvidiamon.cpp)
+endif()
 
 target_link_libraries(prmon PRIVATE
            nlohmann_json::nlohmann_json

@@ -9,7 +9,9 @@
 #include "../src/iomon.h"
 #include "../src/memmon.h"
 #include "../src/netmon.h"
+#ifdef PRMON_NVIDIA_GPU
 #include "../src/nvidiamon.h"
+#endif
 #include "../src/prmonutils.h"
 #include "../src/registry.h"
 #include "gtest/gtest.h"
@@ -137,6 +139,18 @@ TEST(NetmonTest, NetmonMonitonicityTestFixed) {
   }
 }
 
+
+#ifdef PRMON_NVIDIA_GPU
+TEST(NvidiamonTest, NvidiamonInitialStatsTest) {
+  std::unique_ptr<Imonitor> monitor(
+      registry::Registry<Imonitor>::create("nvidiamon"));
+
+  auto stats = monitor->get_text_stats();
+  ASSERT_EQ(stats["gpusmpct"], 0u);
+  ASSERT_EQ(stats["gpumempct"], 0u);
+  ASSERT_EQ(stats["gpufbmem"], 0u);
+}
+#endif
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
