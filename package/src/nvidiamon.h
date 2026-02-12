@@ -4,7 +4,7 @@
 // NVIDIA GPU monitoring class
 //
 
-#ifndef PRMON_NVIDIAMON_H 
+#ifndef PRMON_NVIDIAMON_H
 #define PRMON_NVIDIAMON_H 1
 
 #include <map>
@@ -18,13 +18,13 @@
 #include "registry.h"
 
 
-class nvidiamon final : public Imonitor, public MessageBase { 
+class nvidiamon final : public Imonitor, public MessageBase {
  private:
   const prmon::parameter_list params = {{"ngpus", "1", "1"},
                                         {"gpusmpct", "%", "%"},
                                         {"gpumempct", "%", "%"},
                                         {"gpufbmem", "kB", "kB"}};
-  
+
   // Map of classes that represent each monitored quantity
   // Will be initialised from the above parameter list
   prmon::monitored_list nvidia_stats;
@@ -34,10 +34,10 @@ class nvidiamon final : public Imonitor, public MessageBase {
 
   // Count GPUs on the system
   unsigned int ngpus;
-  
-  // Test if nvml is available
+
+  // Test if nvml is available and initialize it
   bool init_nvml();
-  
+
   // Vectors to store utilization and memory info
   std::vector<nvmlProcessUtilizationSample_t> utilization;
   std::vector<nvmlProcessInfo_t> memory_info;
@@ -47,7 +47,7 @@ class nvidiamon final : public Imonitor, public MessageBase {
 
   // Conversion from Bytes to kB (this is to be more consistent with other
   // memory units in prmon)
-  const unsigned int B_to_KB = 1024; 
+  const unsigned long long B_to_KB = 1024;
 
   // Last seen timestamp
   unsigned long long last_seen_timestamp;
@@ -57,8 +57,8 @@ class nvidiamon final : public Imonitor, public MessageBase {
   ~nvidiamon();
 
   void update_stats(const std::vector<pid_t>& pids,
-    const std::string read_path = "");
-    
+      const std::string read_path = "");
+
   // These are the stat getter methods which retrieve current statistics
   prmon::monitored_value_map const get_text_stats();
   prmon::monitored_value_map const get_json_total_stats();
@@ -68,7 +68,7 @@ class nvidiamon final : public Imonitor, public MessageBase {
 
   void const get_hardware_info(nlohmann::json& hw_json);
   void const get_unit_info(nlohmann::json& unit_json);
-  bool const is_valid() { return valid; } 
+  bool const is_valid() { return valid; }
 
 };
 REGISTER_MONITOR(Imonitor, nvidiamon, "Monitor NVIDIA GPU activity")

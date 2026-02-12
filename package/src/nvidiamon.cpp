@@ -3,7 +3,7 @@
 #include "nvidiamon.h"
 
 #include <string>
-#include <cstring> 
+#include <cstring>
 
 #include <nvml.h>
 
@@ -13,7 +13,7 @@
 #define MONITOR_NAME "nvidiamon"
 
 // Constructor; uses RAII pattern to be valid after construction
-nvidiamon::nvidiamon() {
+nvidiamon::nvidiamon() : nvidia_stats{} {
   log_init(MONITOR_NAME);
 #undef MONITOR_NAME
   for (const auto& param : params) {
@@ -24,7 +24,7 @@ nvidiamon::nvidiamon() {
   // If this works we are valid, but if not then we can't get data
   valid = init_nvml();
   last_seen_timestamp = 0;
-  
+
   if (valid) {
     utilization.resize(max_samples);
     memory_info.resize(max_samples);
@@ -35,7 +35,7 @@ nvidiamon::nvidiamon() {
 nvidiamon::~nvidiamon() {
   if (valid) {
     nvmlReturn_t result = nvmlShutdown();
-    if (result != NVML_SUCCESS){ 
+    if (result != NVML_SUCCESS) {
       warning("nvmlShutdown was not successfully finished");
     }
   }
@@ -43,8 +43,10 @@ nvidiamon::~nvidiamon() {
 
 void nvidiamon::update_stats(const std::vector<pid_t>& pids, const std::string read_path) {
   prmon::monitored_value_map nvidia_stats_update{};
-  for (const auto& value : nvidia_stats) nvidia_stats_update[value.first] = 0L;
-    
+  for (const auto& value : nvidia_stats) {
+    nvidia_stats_update[value.first] = 0L;
+  }
+
   nvmlReturn_t result;
 
   unsigned long long current_max_timestamp = last_seen_timestamp;
@@ -56,23 +58,23 @@ void nvidiamon::update_stats(const std::vector<pid_t>& pids, const std::string r
       warning("Failed to get handle for GPU index " + std::to_string(gpu_idx));
       continue;
     }
-        
+
     unsigned int util_count = max_samples;
-        
+
     result = nvmlDeviceGetProcessUtilization(device, utilization.data(), &util_count, last_seen_timestamp);
-        
+
     if (result == NVML_ERROR_INSUFFICIENT_SIZE) {
-      warning("Utilization sample buffer size (" + std::to_string(max_samples) + 
+      warning("Utilization sample buffer size (" + std::to_string(max_samples) +
               ") exceeded. Consider increasing max_samples.");
       util_count = max_samples;
     }
 
     if (result != NVML_SUCCESS && result != NVML_ERROR_NOT_FOUND
-        && result != NVML_ERROR_INSUFFICIENT_SIZE) { 
-      continue; 
+        && result != NVML_ERROR_INSUFFICIENT_SIZE) {
+      continue;
     }
 
-    for(unsigned int i = 0; i < util_count; ++i) {
+    for (unsigned int i = 0; i < util_count; ++i) {
       if (utilization[i].timeStamp > current_max_timestamp) {
         current_max_timestamp = utilization[i].timeStamp;
       }
@@ -82,7 +84,7 @@ void nvidiamon::update_stats(const std::vector<pid_t>& pids, const std::string r
     result = nvmlDeviceGetComputeRunningProcesses(device, &mem_count, memory_info.data());
 
     if (result == NVML_ERROR_INSUFFICIENT_SIZE) {
-      warning("Memory sample buffer size (" + std::to_string(max_samples) + 
+      warning("Memory sample buffer size (" + std::to_string(max_samples) +
               ") exceeded. Consider increasing max_samples.");
       mem_count = max_samples;
     }
@@ -97,13 +99,13 @@ void nvidiamon::update_stats(const std::vector<pid_t>& pids, const std::string r
         if (utilization[i].pid == target_pid) {
           nvidia_stats_update["gpusmpct"] += utilization[i].smUtil;
           nvidia_stats_update["gpumempct"] += utilization[i].memUtil;
-          break; 
+          break;
         }
       }
 
       for (unsigned int i = 0; i < mem_count; ++i) {
         if (memory_info[i].pid == target_pid) {
-          nvidia_stats_update["gpufbmem"] += (memory_info[i].usedGpuMemory / B_to_KB); 
+          nvidia_stats_update["gpufbmem"] += (memory_info[i].usedGpuMemory / B_to_KB);
           break;
         }
       }
@@ -151,8 +153,8 @@ prmon::monitored_average_map const nvidiamon::get_json_average_stats(
 // Initialize NVML
 bool nvidiamon::init_nvml() {
   nvmlReturn_t result = nvmlInit();
-  
-  if(result != NVML_SUCCESS) { 
+
+  if (result != NVML_SUCCESS) {
     warning("NVML Init failed: " + std::string(nvmlErrorString(result)));
     return false;
   }
@@ -160,15 +162,15 @@ bool nvidiamon::init_nvml() {
   unsigned int gpus{};
   result = nvmlDeviceGetCount(&gpus);
 
-  if(result != NVML_SUCCESS) {
+  if (result != NVML_SUCCESS) {
     warning("Failed to get GPU count: " + std::string(nvmlErrorString(result)));
-    return false; 
+    return false;
   }
 
   ngpus = gpus;
   if (gpus == 0) {
     warning("NvmlInit() succeeded but no GPUs found");
-    return false; 
+    return false;
   }
   return true;
 }
@@ -191,30 +193,30 @@ void const nvidiamon::get_hardware_info(nlohmann::json& hw_json) {
     unsigned long long total_mem = 0;
 
     result = nvmlDeviceGetHandleByIndex(i, &device);
-    if(result != NVML_SUCCESS) {
+    if (result != NVML_SUCCESS) {
       warning("Failed to get handle for GPU index " + std::to_string(i));
       continue;
     }
 
     result = nvmlDeviceGetName(device, name, NVML_DEVICE_NAME_BUFFER_SIZE);
-    if(result != NVML_SUCCESS) {
+    if (result != NVML_SUCCESS) {
       warning("Failed to get name for GPU index " + std::to_string(i));
       name[0] = '\0';
     }
 
     result = nvmlDeviceGetMaxClockInfo(device, NVML_CLOCK_SM, &sm_freq);
-    if(result != NVML_SUCCESS) {
+    if (result != NVML_SUCCESS) {
       warning("Failed to get SM frequency for GPU index " + std::to_string(i));
       sm_freq = 0;
     }
 
     result = nvmlDeviceGetMemoryInfo(device, &memInfo);
-    if(result != NVML_SUCCESS) {
+    if (result != NVML_SUCCESS) {
       warning("Failed to get memory info for GPU index " + std::to_string(i));
       memInfo.total = 0;
-    } 
+    }
 
-    total_mem = memInfo.total / B_to_KB; 
+    total_mem = memInfo.total / B_to_KB;
 
     std::string gpu_number = "gpu_" + std::to_string(i);
     hw_json["HW"]["gpu"][gpu_number]["name"] = name;
