@@ -3,7 +3,6 @@
 #include "nvidiamon.h"
 
 #include <string>
-#include <cstring>
 
 #include <nvml.h>
 
@@ -69,6 +68,10 @@ void nvidiamon::update_stats(const std::vector<pid_t>& pids, const std::string r
       util_count = max_samples;
     }
 
+    if (result == NVML_ERROR_NOT_FOUND) {
+      util_count = 0;
+    }
+
     if (result != NVML_SUCCESS && result != NVML_ERROR_NOT_FOUND
         && result != NVML_ERROR_INSUFFICIENT_SIZE) {
       continue;
@@ -87,6 +90,10 @@ void nvidiamon::update_stats(const std::vector<pid_t>& pids, const std::string r
       warning("Memory sample buffer size (" + std::to_string(max_samples) +
               ") exceeded. Consider increasing max_samples.");
       mem_count = max_samples;
+    }
+
+    if (result == NVML_ERROR_NOT_FOUND) {
+      mem_count = 0;
     }
 
     if (result != NVML_SUCCESS && result != NVML_ERROR_NOT_FOUND
@@ -186,8 +193,7 @@ void const nvidiamon::get_hardware_info(nlohmann::json& hw_json) {
     nvmlReturn_t result;
     nvmlMemory_t memInfo;
 
-    char name[NVML_DEVICE_NAME_BUFFER_SIZE];
-    memset(name, 0, NVML_DEVICE_NAME_BUFFER_SIZE);
+    char name[NVML_DEVICE_NAME_BUFFER_SIZE] = {};
 
     unsigned int sm_freq = 0;
     unsigned long long total_mem = 0;
