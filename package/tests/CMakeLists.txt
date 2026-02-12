@@ -113,10 +113,10 @@ if (BUILD_GTESTS)
     # Link NVML to test targets (nvidiamon.cpp requires it)
     if(ENABLE_NVIDIA_GPU)
       target_sources(test_values PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src/nvidiamon.cpp)
-      target_compile_definitions(test_values PRIVATE PRMON_NVIDIA_GPU)
+      target_compile_definitions(test_values PRIVATE ENABLE_NVIDIA_GPU)
 
       target_sources(test_fields PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src/nvidiamon.cpp)
-      target_compile_definitions(test_fields PRIVATE PRMON_NVIDIA_GPU)
+      target_compile_definitions(test_fields PRIVATE ENABLE_NVIDIA_GPU)
     endif()
 
     if(ENABLE_NVIDIA_GPU AND NVML_FOUND)

@@ -1,9 +1,9 @@
 // Copyright (C) 2020-2025 CERN
 // License Apache2 - see LICENCE file
-#include "nvidiamon.h"
-
 #include <string>
 
+#if defined(ENABLE_NVIDIA_GPU)
+#include "nvidiamon.h"
 #include <nvml.h>
 
 #include "utils.h"
@@ -65,15 +65,16 @@ void nvidiamon::update_stats(const std::vector<pid_t>& pids, const std::string r
     if (result == NVML_ERROR_INSUFFICIENT_SIZE) {
       warning("Utilization sample buffer size (" + std::to_string(max_samples) +
               ") exceeded. Consider increasing max_samples.");
-      util_count = max_samples;
+      continue;
     }
 
     if (result == NVML_ERROR_NOT_FOUND) {
       util_count = 0;
     }
 
-    if (result != NVML_SUCCESS && result != NVML_ERROR_NOT_FOUND
-        && result != NVML_ERROR_INSUFFICIENT_SIZE) {
+    if (result != NVML_SUCCESS && result != NVML_ERROR_NOT_FOUND) {
+      warning("Failed to get process utilization for GPU index " + std::to_string(gpu_idx) + 
+              ": " + std::string(nvmlErrorString(result)));
       continue;
     }
 
@@ -89,15 +90,16 @@ void nvidiamon::update_stats(const std::vector<pid_t>& pids, const std::string r
     if (result == NVML_ERROR_INSUFFICIENT_SIZE) {
       warning("Memory sample buffer size (" + std::to_string(max_samples) +
               ") exceeded. Consider increasing max_samples.");
-      mem_count = max_samples;
+      continue;
     }
 
     if (result == NVML_ERROR_NOT_FOUND) {
       mem_count = 0;
     }
 
-    if (result != NVML_SUCCESS && result != NVML_ERROR_NOT_FOUND
-        && result != NVML_ERROR_INSUFFICIENT_SIZE) {
+    if (result != NVML_SUCCESS && result != NVML_ERROR_NOT_FOUND) {
+      warning("Failed to get process memory utilization for GPU index " + std::to_string(gpu_idx) + 
+              ": " + std::string(nvmlErrorString(result)));
       continue;
     }
 
@@ -237,3 +239,4 @@ void const nvidiamon::get_unit_info(nlohmann::json& unit_json) {
   prmon::fill_units(unit_json, params);
   return;
 }
+#endif

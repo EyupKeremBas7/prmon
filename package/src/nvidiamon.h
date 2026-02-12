@@ -3,13 +3,13 @@
 
 // NVIDIA GPU monitoring class
 //
-
 #ifndef PRMON_NVIDIAMON_H
 #define PRMON_NVIDIAMON_H 1
 
 #include <map>
 #include <string>
 #include <vector>
+#ifdef ENABLE_NVIDIA_GPU
 #include <nvml.h>
 
 #include "Imonitor.h"
@@ -33,7 +33,7 @@ class nvidiamon final : public Imonitor, public MessageBase {
   bool valid;
 
   // Count GPUs on the system
-  unsigned int ngpus;
+  unsigned int ngpus{};
 
   // Test if nvml is available and initialize it
   bool init_nvml();
@@ -73,5 +73,6 @@ class nvidiamon final : public Imonitor, public MessageBase {
 };
 REGISTER_MONITOR(Imonitor, nvidiamon, "Monitor NVIDIA GPU activity")
 
+#endif // ENABLE_NVIDIA_GPU
 
 #endif // PRMON_NVIDIAMON_H
