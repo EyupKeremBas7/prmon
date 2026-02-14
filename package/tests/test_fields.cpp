@@ -18,7 +18,7 @@
 #include "../src/iomon.h"
 #include "../src/memmon.h"
 #include "../src/netmon.h"
-#ifdef PRMON_NVIDIA_GPU
+#ifdef ENABLE_NVIDIA_GPU
 #include "../src/nvidiamon.h"
 #endif
 #include "../src/prmonutils.h"

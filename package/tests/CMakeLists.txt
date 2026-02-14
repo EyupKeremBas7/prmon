@@ -125,7 +125,6 @@ if (BUILD_GTESTS)
       target_include_directories(test_fields PRIVATE ${NVIDIA_INCLUDE_DIRS})
       target_link_libraries(test_fields PRIVATE ${NVIDIA_LIBRARIES})
     endif()
-
 endif()
 
 # Custom targets for handling scripted wrappers for tests

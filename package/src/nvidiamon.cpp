@@ -182,12 +182,14 @@ bool nvidiamon::init_nvml() {
 
   if (result != NVML_SUCCESS) {
     warning("Failed to get GPU count: " + std::string(nvmlErrorString(result)));
+    nvmlShutdown();
     return false;
   }
 
   ngpus = gpus;
   if (gpus == 0) {
     warning("NvmlInit() succeeded but no GPUs found");
+    nvmlShutdown();
     return false;
   }
   return true;
@@ -242,7 +244,6 @@ void const nvidiamon::get_hardware_info(nlohmann::json& hw_json) {
   }
   return;
 }
-
 
 void const nvidiamon::get_unit_info(nlohmann::json& unit_json) {
   prmon::fill_units(unit_json, params);
