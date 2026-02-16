@@ -11,8 +11,9 @@ add_executable(prmon src/prmon.cpp
            src/memmon.cpp
            )
 
-if(ENABLE_NVIDIA_GPU)
+if(CUDAToolkit_FOUND)
   target_sources(prmon PRIVATE src/nvidiamon.cpp)
+  target_link_libraries(prmon PRIVATE CUDA::nvml)
 endif()
 
 target_link_libraries(prmon PRIVATE

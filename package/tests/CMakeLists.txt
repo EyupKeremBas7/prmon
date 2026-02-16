@@ -111,20 +111,13 @@ if (BUILD_GTESTS)
     add_test(NAME testFieldsSomeDisabled COMMAND test_fields --disable netmon --disable cpumon)
 
     # Link NVML to test targets (nvidiamon.cpp requires it)
-    if(ENABLE_NVIDIA_GPU)
+    if(CUDAToolkit_FOUND)
       target_sources(test_values PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src/nvidiamon.cpp)
-      target_compile_definitions(test_values PRIVATE ENABLE_NVIDIA_GPU)
-
+      target_link_libraries(test_values PRIVATE CUDA::nvml)
       target_sources(test_fields PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src/nvidiamon.cpp)
-      target_compile_definitions(test_fields PRIVATE ENABLE_NVIDIA_GPU)
+      target_link_libraries(test_fields PRIVATE CUDA::nvml)
     endif()
 
-    if(ENABLE_NVIDIA_GPU AND NVML_FOUND)
-      target_include_directories(test_values PRIVATE ${NVIDIA_INCLUDE_DIRS})
-      target_link_libraries(test_values PRIVATE ${NVIDIA_LIBRARIES})
-      target_include_directories(test_fields PRIVATE ${NVIDIA_INCLUDE_DIRS})
-      target_link_libraries(test_fields PRIVATE ${NVIDIA_LIBRARIES})
-    endif()
 endif()
 
 # Custom targets for handling scripted wrappers for tests

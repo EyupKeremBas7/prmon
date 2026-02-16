@@ -1,7 +1,7 @@
 # - Define the minimum CMake version
 # HSF recommends 3.10 to support C/C++ compile features for C/C++11 across all
 # platforms
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.17)
 # - Call project() to setup system
 # From CMake 3, we can set the project version easily in one go
 project(prmon VERSION 3.2.0 LANGUAGES CXX)
@@ -96,40 +96,9 @@ option(ENABLE_NVIDIA_GPU "Enable NVIDIA GPU monitoring support" OFF)
 if(ENABLE_NVIDIA_GPU)
   message(STATUS "Checking for NVIDIA Management Library (NVML)...")
 
-  find_library(NVML_LIBRARY
-    NAMES nvidia-ml
-    PATHS
-      /usr/lib/x86_64-linux-gnu
-      /usr/lib64
-      /usr/lib
-      /usr/lib64-nvidia
-      /usr/lib/nvidia
-      /usr/local/cuda/lib64
-      /usr/local/cuda/lib
-      /usr/lib/wsl/lib  
-  )
-
-  find_path(NVML_INCLUDE_DIR
-    NAMES nvml.h
-    PATHS
-      /usr/include
-      /usr/include/nvidia/gdk
-      /usr/local/cuda/include
-      /usr/include/hwloc 
-  )
-
-  include(FindPackageHandleStandardArgs)
-  find_package_handle_standard_args(NVML DEFAULT_MSG NVML_LIBRARY NVML_INCLUDE_DIR)
-
-  if(NVML_FOUND)
-    message(STATUS "Found NVML: ${NVML_LIBRARY}")
-    set(NVIDIA_LIBRARIES ${NVML_LIBRARY})
-    set(NVIDIA_INCLUDE_DIRS ${NVML_INCLUDE_DIR})
-    add_definitions(-DENABLE_NVIDIA_GPU)
-  else()
-    message(WARNING "NVML library or header not found. NVIDIA monitoring will be disabled.")
-    set(ENABLE_NVIDIA_GPU OFF)
-  endif()
+  find_package(CUDAToolkit REQUIRED)
+  message(STATUS "CUDA Toolkit version: ${CUDAToolkit_VERSION}")
+  message(STATUS "CUDA Toolkit include dir: ${CUDAToolkit_INCLUDE_DIRS}")
 endif()
 
 # Add package utilities to CMake path
