@@ -1,16 +1,14 @@
 // Copyright (C) 2020-2025 CERN
-// License Apache2 - see LICENCE file
-
+//
 // NVIDIA GPU monitoring class
 //
+
 #ifndef PRMON_NVIDIAMON_H
 #define PRMON_NVIDIAMON_H 1
 
 #include <map>
 #include <string>
 #include <vector>
-#ifdef ENABLE_NVIDIA_GPU
-#include <nvml.h>
 
 #include "Imonitor.h"
 #include "MessageBase.h"
@@ -19,6 +17,8 @@
 
 class nvidiamon final : public Imonitor, public MessageBase {
  private:
+  // const static std::vector<std::string> default_nvidia_params{
+  //   "ngpus", "gpusmpct", "gpumempct", "gpufbmem"};
   const prmon::parameter_list params = {{"ngpus", "1", "1"},
                                         {"gpusmpct", "%", "%"},
                                         {"gpumempct", "%", "%"},
@@ -32,31 +32,24 @@ class nvidiamon final : public Imonitor, public MessageBase {
   bool valid;
 
   // Count GPUs on the system
-  unsigned int ngpus{};
+  unsigned int ngpus;
 
-  // Test if nvml is available and initialize it
-  bool init_nvml();
+  // Test if nvidia-smi is available
+  bool test_nvidia_smi();
 
-  // Vectors to store utilization and memory info
-  std::vector<nvmlProcessUtilizationSample_t> utilization;
-  std::vector<nvmlProcessInfo_t> memory_info;
-
-  // Max number of samples to take
-  const unsigned int max_samples = 100;
-
-  // Conversion from Bytes to kB (this is to be more consistent with other
+  // Conversion from MB to kB for (this is to be more consistent with other
   // memory units in prmon)
-  const unsigned long long B_to_KB = 1024;
-
-  // Last seen timestamp
-  unsigned long long last_seen_timestamp;
+  const unsigned int MB_to_KB = 1024;
 
  public:
   nvidiamon();
-  ~nvidiamon();
 
   void update_stats(const std::vector<pid_t>& pids,
-      const std::string read_path = "");
+                    const std::string read_path = "");
+
+  // Alternative to cmd_pipe_output() for testing
+  std::pair<int, std::vector<std::string>> read_gpu_stats_test(
+      const std::string read_path);
 
   // These are the stat getter methods which retrieve current statistics
   prmon::monitored_value_map const get_text_stats();
@@ -71,5 +64,4 @@ class nvidiamon final : public Imonitor, public MessageBase {
 };
 REGISTER_MONITOR(Imonitor, nvidiamon, "Monitor NVIDIA GPU activity")
 
-#endif // ENABLE_NVIDIA_GPU
-#endif // PRMON_NVIDIAMON_H
+#endif  // PRMON_NVIDIAMON_H

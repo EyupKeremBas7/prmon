@@ -1,142 +1,144 @@
 // Copyright (C) 2020-2025 CERN
-// License Apache2 - see LICENCE file
-#include <string>
 
-#if defined(ENABLE_NVIDIA_GPU)
 #include "nvidiamon.h"
-#include <nvml.h>
+
+#include <stdlib.h>
+#include <unistd.h>
+
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <unordered_map>
 
 #include "utils.h"
-
 
 #define MONITOR_NAME "nvidiamon"
 
 // Constructor; uses RAII pattern to be valid after construction
-nvidiamon::nvidiamon() : nvidia_stats{} {
+nvidiamon::nvidiamon() {
   log_init(MONITOR_NAME);
 #undef MONITOR_NAME
   for (const auto& param : params) {
     nvidia_stats.emplace(param.get_name(), prmon::monitored_value(param));
   }
 
-  // Attempt to initialize NVML
+  // Attempt to execute nvidia-smi
   // If this works we are valid, but if not then we can't get data
-  valid = init_nvml();
-  last_seen_timestamp = 0;
-
-  if (valid) {
-    utilization.resize(max_samples);
-    memory_info.resize(max_samples);
-  }
+  valid = test_nvidia_smi();
 }
 
-// Destructor; shuts down NVML if it was initialized
-nvidiamon::~nvidiamon() {
-  if (valid) {
-    nvmlReturn_t result = nvmlShutdown();
-    if (result != NVML_SUCCESS) {
-      warning("nvmlShutdown was not successfully finished");
-    }
+std::pair<int, std::vector<std::string>> nvidiamon::read_gpu_stats_test(
+    const std::string read_path) {
+  std::vector<std::string> split_output{};
+  std::string output;
+  std::pair<int, std::vector<std::string>> ret{0, split_output};
+  std::ifstream inp{read_path};
+  while (std::getline(inp, output)) {
+    split_output.push_back(output);
   }
+  inp.close();
+  ret.second = split_output;
+  return ret;
 }
 
-void nvidiamon::update_stats(const std::vector<pid_t>& pids, const std::string read_path) {
+void nvidiamon::update_stats(const std::vector<pid_t>& pids,
+                             const std::string read_path) {
+  const std::vector<std::string> cmd = {"nvidia-smi", "pmon", "-s",
+                                        "um",         "-c",   "1"};
   prmon::monitored_value_map nvidia_stats_update{};
-  for (const auto& value : nvidia_stats) {
-    nvidia_stats_update[value.first] = 0L;
+  for (const auto& value : nvidia_stats) nvidia_stats_update[value.first] = 0L;
+
+  std::pair<int, std::vector<std::string>> cmd_result;
+  if (read_path.size()) {
+    cmd_result = read_gpu_stats_test(read_path);
+  } else {
+    cmd_result = prmon::cmd_pipe_output(cmd);
+    if (cmd_result.first) {
+      // Failed
+      error("Failed to execute 'nvidia-smi' to get GPU status (code " +
+            std::to_string(cmd_result.first) + ")");
+      return;
+    }
+  }
+  if (log_level <= spdlog::level::debug) {
+    std::stringstream strm;
+    strm << "nvidiamon::update_stats got the following output ("
+         << cmd_result.second.size() << "): " << std::endl;
+    int i = 0;
+    for (const auto& s : cmd_result.second) {
+      strm << i << " -> " << s << std::endl;
+      ++i;
+    }
+    debug(strm.str());
   }
 
-  nvmlReturn_t result;
-
-  unsigned long long current_max_timestamp = last_seen_timestamp;
-  unsigned int active_gpus{0};
-
-  for (unsigned int gpu_idx{0}; gpu_idx < ngpus; ++gpu_idx) {
-    nvmlDevice_t device;
-    result = nvmlDeviceGetHandleByIndex(gpu_idx, &device);
-    if (result != NVML_SUCCESS) {
-      warning("Failed to get handle for GPU index " + std::to_string(gpu_idx));
-      continue;
-    }
-
-    unsigned int util_count = max_samples;
-
-    result = nvmlDeviceGetProcessUtilization(device, utilization.data(), &util_count, last_seen_timestamp);
-
-    if (result == NVML_ERROR_INSUFFICIENT_SIZE) {
-      warning("Utilization sample buffer size (" + std::to_string(max_samples) +
-              ") exceeded. Consider increasing max_samples.");
-      continue;
-    }
-
-    if (result == NVML_ERROR_NOT_FOUND) {
-      util_count = 0;
-    }
-
-    if (result != NVML_SUCCESS && result != NVML_ERROR_NOT_FOUND) {
-      warning("Failed to get process utilization for GPU index " + std::to_string(gpu_idx) + 
-              ": " + std::string(nvmlErrorString(result)));
-      continue;
-    }
-
-    for (unsigned int i{0}; i < util_count; ++i) {
-      if (utilization[i].timeStamp > current_max_timestamp) {
-        current_max_timestamp = utilization[i].timeStamp;
+  // Loop over output
+  unsigned int gpu_idx{}, sm{}, mem{}, fb_mem{};
+  std::string sm_s{}, mem_s{}, fb_mem_s{};
+  pid_t pid{};
+  std::string enc{}, dec{}, jpg{}, ofa{}, cg_type{}, ccpm{}, cmd_name{};
+  std::unordered_map<unsigned int, bool>
+      activegpus{};  // Avoid double counting active GPUs
+  for (const auto& s : cmd_result.second) {
+    if (s[0] == '#') continue;
+    std::istringstream instr(s);
+    instr >> gpu_idx >> pid >> cg_type >> sm_s >> mem_s >> enc >> dec >> jpg >>
+        ofa >> fb_mem_s >> ccpm >> cmd_name;
+    auto read_ok = !(instr.fail() || instr.bad());  // eof() is ok
+    if (read_ok) {
+      sm = prmon::parse_uint_field(sm_s);
+      mem = prmon::parse_uint_field(mem_s);
+      fb_mem = prmon::parse_uint_field(fb_mem_s);
+      if (log_level <= spdlog::level::debug) {
+        std::stringstream strm;
+        strm << "Good read: " << gpu_idx << " " << pid << " " << cg_type << " "
+             << sm << " " << mem << " " << enc << " " << dec << " " << jpg
+             << " " << ofa << " " << fb_mem << " " << ccpm << " " << cmd_name
+             << std::endl;
+        debug(strm.str());
       }
-    }
 
-    unsigned int mem_count = max_samples;
-    result = nvmlDeviceGetComputeRunningProcesses(device, &mem_count, memory_info.data());
-
-    if (result == NVML_ERROR_INSUFFICIENT_SIZE) {
-      warning("Memory sample buffer size (" + std::to_string(max_samples) +
-              ") exceeded. Consider increasing max_samples.");
-      continue;
-    }
-
-    if (result == NVML_ERROR_NOT_FOUND) {
-      mem_count = 0;
-    }
-
-    if (result != NVML_SUCCESS && result != NVML_ERROR_NOT_FOUND) {
-      warning("Failed to get process memory utilization for GPU index " + std::to_string(gpu_idx) + 
-              ": " + std::string(nvmlErrorString(result)));
-      continue;
-    }
-
-    bool gpu_is_active{false};
-
-    for (unsigned int target_pid : pids) {
-      for (unsigned int i{0}; i < util_count; ++i) {
-        if (utilization[i].pid == target_pid) {
-          nvidia_stats_update["gpusmpct"] += utilization[i].smUtil;
-          nvidia_stats_update["gpumempct"] += utilization[i].memUtil;
-          gpu_is_active = true;
-          break;
+      // Filter on PID value, so we only add stats for our processes
+      for (auto const p : pids) {
+        if (p == pid) {
+          nvidia_stats_update["gpusmpct"] += sm;
+          nvidia_stats_update["gpumempct"] += mem;
+          nvidia_stats_update["gpufbmem"] += fb_mem * MB_to_KB;
+          if (!activegpus.count(gpu_idx)) {
+            ++nvidia_stats_update["ngpus"];
+            activegpus[gpu_idx] = true;
+          }
         }
       }
 
-      for (unsigned int i{0}; i < mem_count; ++i) {
-        if (memory_info[i].pid == target_pid) {
-          nvidia_stats_update["gpufbmem"] += (memory_info[i].usedGpuMemory / B_to_KB);
-          gpu_is_active = true;
-          break;
-        }
+      // Now move summed stats to the persistent counters
+      for (auto& value : nvidia_stats) {
+        value.second.set_value(nvidia_stats_update[value.first]);
       }
-    }
+    } else if (log_level <= spdlog::level::debug) {
+      std::stringstream strm;
+      strm << "Bad read of line: " << s << std::endl;
+      strm << "Parsed to: " << gpu_idx << " " << pid << " " << cg_type << " "
+           << sm << " " << mem << " " << enc << " " << dec << " " << jpg << " "
+           << ofa << " " << fb_mem << " " << ccpm << " " << cmd_name
+           << std::endl;
 
-    if (gpu_is_active) {
-      active_gpus++;
+      strm << "StringStream status: good()=" << instr.good();
+      strm << " eof()=" << instr.eof();
+      strm << " fail()=" << instr.fail();
+      strm << " bad()=" << instr.bad() << std::endl;
+      debug(strm.str());
     }
   }
 
-  last_seen_timestamp = current_max_timestamp;
-
-  nvidia_stats_update["ngpus"] = active_gpus;
-  for (auto& value : nvidia_stats) {
-    if (nvidia_stats_update.count(value.first)) {
-      value.second.set_value(nvidia_stats_update[value.first]);
+  if (log_level <= spdlog::level::debug) {
+    std::stringstream strm;
+    strm << "Parsed: ";
+    for (const auto& value : nvidia_stats) {
+      strm << value.first << ": " << value.second.get_value() << ";";
     }
+    debug(strm.str());
   }
 }
 
@@ -168,29 +170,29 @@ prmon::monitored_average_map const nvidiamon::get_json_average_stats(
   return nvidia_stat_map;
 }
 
-// Initialize NVML
-bool nvidiamon::init_nvml() {
-  nvmlReturn_t result = nvmlInit();
+bool nvidiamon::test_nvidia_smi() {
+  const std::vector<std::string> cmd = {"nvidia-smi", "-L"};
 
-  if (result != NVML_SUCCESS) {
-    warning("NVML Init failed: " + std::string(nvmlErrorString(result)));
-    return false;
+  // The use of execvp means searching along PATH, which is fine
+  // but does imply some extra stat() calls; nvidia-smi isn't going
+  // to change location, so there is an argument for finding and
+  // caching the directory path
+  auto cmd_result = prmon::cmd_pipe_output(cmd);
+  if (cmd_result.first != 0) return false;
+  unsigned int gpus = 0;
+  for (auto const& s : cmd_result.second) {
+    // From C++20 can use 'starts_with'
+    if (s.substr(0, 3).compare("GPU") == 0) {
+      ++gpus;
+    }
   }
-
-  unsigned int gpus{};
-  result = nvmlDeviceGetCount(&gpus);
-
-  if (result != NVML_SUCCESS) {
-    warning("Failed to get GPU count: " + std::string(nvmlErrorString(result)));
-    nvmlShutdown();
-    return false;
-  }
-
-  ngpus = gpus;
+  nvidiamon::ngpus = gpus;
   if (gpus == 0) {
-    warning("NvmlInit() succeeded but no GPUs found");
-    nvmlShutdown();
+    warning("Executed 'nvidia-smi -L', but no GPUs found");
     return false;
+  } else if (gpus > 4) {
+    warning(
+        "More than 4 GPUs found, so GPU process monitoring will be unreliable");
   }
   return true;
 }
@@ -200,47 +202,41 @@ prmon::parameter_list const nvidiamon::get_parameter_list() { return params; }
 
 // Collect related hardware information
 void const nvidiamon::get_hardware_info(nlohmann::json& hw_json) {
-  hw_json["HW"]["gpu"]["nGPU"] = ngpus;
-  for (unsigned int i{0}; i < ngpus; ++i) {
-    nvmlDevice_t device;
-    nvmlReturn_t result;
-    nvmlMemory_t memInfo;
+  // Record the number of GPUs
+  hw_json["HW"]["gpu"]["nGPU"] = nvidiamon::ngpus;
 
-    char name[NVML_DEVICE_NAME_BUFFER_SIZE] = {}; // NVML requires a char array
-
-    unsigned int sm_freq{0};
-    unsigned long long total_mem{0};
-
-    result = nvmlDeviceGetHandleByIndex(i, &device);
-    if (result != NVML_SUCCESS) {
-      warning("Failed to get handle for GPU index " + std::to_string(i));
-      continue;
+  // For the GPUs present we get details using "nvidia-smi --query-gpu="
+  // Note that the name is put at the end of the output as it makes
+  // parsing easier
+  std::vector<std::string> cmd = {
+      "nvidia-smi", "--query-gpu=clocks.max.sm,memory.total,gpu_name",
+      "--format=csv,noheader,nounits"};
+  auto cmd_result = prmon::cmd_pipe_output(cmd);
+  if (cmd_result.first) {
+    error("Failed to get hardware details for GPUs");
+    return;
+  }
+  unsigned int sm_freq, total_mem;
+  unsigned int count{0};
+  for (auto const& s : cmd_result.second) {
+    std::istringstream instr(s);
+    instr >> sm_freq;
+    instr.get();  // Swallow the comma
+    instr >> total_mem;
+    auto pos = std::string::size_type(instr.tellg()) + 2;  // Skip ", "
+    std::string name{"unknown"};
+    if (pos <= s.size()) {  // This should never fail, but...
+      name = s.substr(pos);
     }
-
-    result = nvmlDeviceGetName(device, name, NVML_DEVICE_NAME_BUFFER_SIZE);
-    if (result != NVML_SUCCESS) {
-      warning("Failed to get name for GPU index " + std::to_string(i));
-      name[0] = '\0';
+    if (!(instr.fail() || instr.bad())) {
+      std::string gpu_number = "gpu_" + std::to_string(count);
+      hw_json["HW"]["gpu"][gpu_number]["name"] = name;
+      hw_json["HW"]["gpu"][gpu_number]["sm_freq"] = sm_freq;
+      hw_json["HW"]["gpu"][gpu_number]["total_mem"] = total_mem * MB_to_KB;
+    } else {
+      warning("Unexpected line from GPU hardware query: " + s);
     }
-
-    result = nvmlDeviceGetMaxClockInfo(device, NVML_CLOCK_SM, &sm_freq);
-    if (result != NVML_SUCCESS) {
-      warning("Failed to get SM frequency for GPU index " + std::to_string(i));
-      sm_freq = 0;
-    }
-
-    result = nvmlDeviceGetMemoryInfo(device, &memInfo);
-    if (result != NVML_SUCCESS) {
-      warning("Failed to get memory info for GPU index " + std::to_string(i));
-      memInfo.total = 0;
-    }
-
-    total_mem = memInfo.total / B_to_KB;
-
-    std::string gpu_number = "gpu_" + std::to_string(i);
-    hw_json["HW"]["gpu"][gpu_number]["name"] = name;
-    hw_json["HW"]["gpu"][gpu_number]["sm_freq"] = sm_freq;
-    hw_json["HW"]["gpu"][gpu_number]["total_mem"] = total_mem;
+    ++count;
   }
   return;
 }
@@ -249,4 +245,3 @@ void const nvidiamon::get_unit_info(nlohmann::json& unit_json) {
   prmon::fill_units(unit_json, params);
   return;
 }
-#endif
