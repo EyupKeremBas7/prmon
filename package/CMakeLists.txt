@@ -13,6 +13,7 @@ add_executable(prmon src/prmon.cpp
 
 if(CUDAToolkit_FOUND)
   target_sources(prmon PRIVATE src/nvidiamon.cpp)
+  target_sources(prmon PRIVATE src/nvmlmon.cpp)
   target_link_libraries(prmon PRIVATE CUDA::nvml)
 endif()
 
