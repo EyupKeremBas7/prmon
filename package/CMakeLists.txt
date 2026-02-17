@@ -4,6 +4,7 @@ add_executable(prmon src/prmon.cpp
            src/MessageBase.cpp
            src/parameter.cpp
            src/netmon.cpp
+           src/nvidiamon.cpp
            src/iomon.cpp
            src/cpumon.cpp
            src/countmon.cpp
@@ -12,7 +13,6 @@ add_executable(prmon src/prmon.cpp
            )
 
 if(CUDAToolkit_FOUND)
-  target_sources(prmon PRIVATE src/nvidiamon.cpp)
   target_sources(prmon PRIVATE src/nvmlmon.cpp)
   target_link_libraries(prmon PRIVATE CUDA::nvml)
 endif()

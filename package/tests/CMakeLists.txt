@@ -48,6 +48,7 @@ if (BUILD_GTESTS)
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpumon.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/memmon.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/netmon.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/nvidiamon.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/iomon.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/utils.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/MessageBase.cpp
@@ -80,6 +81,7 @@ if (BUILD_GTESTS)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpumon.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/memmon.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/netmon.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/nvidiamon.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/iomon.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/MessageBase.cpp
@@ -110,11 +112,11 @@ if (BUILD_GTESTS)
     add_test(NAME testFieldsAll COMMAND test_fields)
     add_test(NAME testFieldsSomeDisabled COMMAND test_fields --disable netmon --disable cpumon)
 
-    # Link NVML to test targets (nvidiamon.cpp requires it)
+    # Link NVML to test targets (nvmlmon.cpp requires it)
     if(CUDAToolkit_FOUND)
-      target_sources(test_values PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src/nvidiamon.cpp)
+      target_sources(test_values PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src/nvmlmon.cpp)
       target_link_libraries(test_values PRIVATE CUDA::nvml)
-      target_sources(test_fields PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src/nvidiamon.cpp)
+      target_sources(test_fields PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src/nvmlmon.cpp)
       target_link_libraries(test_fields PRIVATE CUDA::nvml)
     endif()
 
