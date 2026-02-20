@@ -1,7 +1,9 @@
 // Copyright (C) 2020-2025 CERN
+// License Apache2 - see LICENCE file
 
 #include "nvidiamon.h"
 
+#include <dlfcn.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -26,6 +28,25 @@ nvidiamon::nvidiamon() {
   // Attempt to execute nvidia-smi
   // If this works we are valid, but if not then we can't get data
   valid = test_nvidia_smi();
+
+  // If NVML library is available, prefer nvmlmon over nvidia-smi
+  if (valid) {
+    void* nvml_test = dlopen("libnvidia-ml.so", RTLD_NOW);
+    if (!nvml_test) {
+      nvml_test = dlopen("libnvidia-ml.so.1", RTLD_NOW);
+    }
+    if (nvml_test) {
+      auto init = (int(*)())dlsym(nvml_test, "nvmlInit");
+      auto shutdown = (int(*)())dlsym(nvml_test, "nvmlShutdown");
+      if (init && init() == 0) {
+        // NVML actually works
+        valid = false;
+        if (shutdown) shutdown();
+      }
+      // Library exists but doesn't work
+      dlclose(nvml_test);
+    }
+  }
 }
 
 std::pair<int, std::vector<std::string>> nvidiamon::read_gpu_stats_test(
@@ -44,6 +65,7 @@ std::pair<int, std::vector<std::string>> nvidiamon::read_gpu_stats_test(
 
 void nvidiamon::update_stats(const std::vector<pid_t>& pids,
                              const std::string read_path) {
+
   const std::vector<std::string> cmd = {"nvidia-smi", "pmon", "-s",
                                         "um",         "-c",   "1"};
   prmon::monitored_value_map nvidia_stats_update{};

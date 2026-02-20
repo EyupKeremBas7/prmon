@@ -1,21 +1,34 @@
 // Copyright (C) 2020-2025 CERN
 // License Apache2 - see LICENCE file
 
-// NVIDIA GPU monitoring class
+// NVIDIA GPU monitoring class using dynamic loading via dlopen
 //
 #ifndef PRMON_NVMLMON_H
 #define PRMON_NVMLMON_H 1
 
-#include <map>
 #include <string>
 #include <vector>
-#ifdef ENABLE_NVIDIA_GPU
-#include <nvml.h>
 
 #include "Imonitor.h"
 #include "MessageBase.h"
 #include "parameter.h"
 #include "registry.h"
+
+// NVML process utilization sample
+typedef struct {
+  unsigned int pid;
+  unsigned long long timeStamp;
+  unsigned int smUtil;
+  unsigned int memUtil;
+  unsigned int encUtil;
+  unsigned int decUtil;
+} nvmlProcessUtilizationSample_t;
+
+// NVML process info (v1)
+typedef struct {
+  unsigned int pid;
+  unsigned long long usedGpuMemory;
+} nvmlProcessInfo_t;
 
 class nvmlmon final : public Imonitor, public MessageBase {
  private:
@@ -28,27 +41,27 @@ class nvmlmon final : public Imonitor, public MessageBase {
   // Will be initialised from the above parameter list
   prmon::monitored_list nvidia_stats;
 
-  // Set a boolean to see if we have a valid nvidia setup
+  // Handle to the dynamically loaded libnvidia-ml.so
+  static void *nvml_handle;
+
+  // Set to true when NVML is successfully loaded and initialized
   bool valid;
 
-  // Count GPUs on the system
+  // Number of GPUs detected on the system
   unsigned int ngpus{};
 
-  // Test if nvml is available and initialize it
+  bool load_nvml_lib();
+
   bool init_nvml();
 
   // Vectors to store utilization and memory info
   std::vector<nvmlProcessUtilizationSample_t> utilization;
   std::vector<nvmlProcessInfo_t> memory_info;
 
-  // Max number of samples to take
   const unsigned int max_samples = 100;
 
-  // Conversion from Bytes to kB (this is to be more consistent with other
-  // memory units in prmon)
   const unsigned long long B_to_KB = 1024;
 
-  // Last seen timestamp
   unsigned long long last_seen_timestamp;
 
  public:
@@ -58,7 +71,6 @@ class nvmlmon final : public Imonitor, public MessageBase {
   void update_stats(const std::vector<pid_t>& pids,
       const std::string read_path = "");
 
-  // These are the stat getter methods which retrieve current statistics
   prmon::monitored_value_map const get_text_stats();
   prmon::monitored_value_map const get_json_total_stats();
   prmon::monitored_average_map const get_json_average_stats(
@@ -71,5 +83,4 @@ class nvmlmon final : public Imonitor, public MessageBase {
 };
 REGISTER_MONITOR(Imonitor, nvmlmon, "Monitor NVIDIA GPU activity")
 
-#endif // ENABLE_NVIDIA_GPU
-#endif // PRMON_NVIDIAMON_H
+#endif // PRMON_NVMLMON_H

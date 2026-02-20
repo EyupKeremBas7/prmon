@@ -2,7 +2,6 @@
 //
 // NVIDIA GPU monitoring class
 //
-
 #ifndef PRMON_NVIDIAMON_H
 #define PRMON_NVIDIAMON_H 1
 

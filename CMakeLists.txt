@@ -90,17 +90,6 @@ if("${ARM_PROCESSOR}" STREQUAL "arm")
   message(STATUS "Disabled ABI warnings on ${CMAKE_HOST_SYSTEM_PROCESSOR}")
 endif()
 
-#--- NVIDIA GPU Monitoring (NVML) ----------------------------------------------
-option(ENABLE_NVIDIA_GPU "Enable NVIDIA GPU monitoring support" OFF)
-
-if(ENABLE_NVIDIA_GPU)
-  message(STATUS "Checking for NVIDIA Management Library (NVML)...")
-
-  find_package(CUDAToolkit REQUIRED)
-  message(STATUS "CUDA Toolkit version: ${CUDAToolkit_VERSION}")
-  message(STATUS "CUDA Toolkit include dir: ${CUDAToolkit_INCLUDE_DIRS}")
-endif()
-
 # Add package utilities to CMake path
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
 
@@ -137,12 +126,6 @@ target_include_directories(prmon PRIVATE ${PROJECT_SOURCE_DIR}/package/include)
 if (BUILD_BENCHMARK_LOG)
   target_include_directories(benchmark-log PRIVATE ${PROJECT_SOURCE_DIR}/package/include)
 endif(BUILD_BENCHMARK_LOG)
-
-#--- add NVML support ----------------------------------------------------------
-if(ENABLE_NVIDIA_GPU AND NVML_FOUND)
-  target_include_directories(prmon PRIVATE ${NVIDIA_INCLUDE_DIRS})
-  target_link_libraries(prmon PRIVATE ${NVIDIA_LIBRARIES})
-endif()
 
 #--- create uninstall target ---------------------------------------------------
 include(cmake/prmonUninstall.cmake)

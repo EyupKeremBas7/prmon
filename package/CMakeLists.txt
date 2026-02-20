@@ -12,10 +12,8 @@ add_executable(prmon src/prmon.cpp
            src/memmon.cpp
            )
 
-if(CUDAToolkit_FOUND)
-  target_sources(prmon PRIVATE src/nvmlmon.cpp)
-  target_link_libraries(prmon PRIVATE CUDA::nvml)
-endif()
+target_sources(prmon PRIVATE src/nvmlmon.cpp)
+target_link_libraries(prmon PRIVATE dl)
 
 target_link_libraries(prmon PRIVATE
            nlohmann_json::nlohmann_json
