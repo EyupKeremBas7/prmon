@@ -65,7 +65,6 @@ std::pair<int, std::vector<std::string>> nvidiamon::read_gpu_stats_test(
 
 void nvidiamon::update_stats(const std::vector<pid_t>& pids,
                              const std::string read_path) {
-
   const std::vector<std::string> cmd = {"nvidia-smi", "pmon", "-s",
                                         "um",         "-c",   "1"};
   prmon::monitored_value_map nvidia_stats_update{};

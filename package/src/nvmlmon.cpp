@@ -256,7 +256,7 @@ bool nvmlmon::load_nvml_lib() {
   nvmlDeviceGetComputeRunningProcesses =
       (nvmlReturn_t (*)(nvmlDevice_t, unsigned int*, nvmlProcessInfo_t*))
       dlsym(nvml_handle, "nvmlDeviceGetComputeRunningProcesses_v3");
-  if (!nvmlDeviceGetComputeRunningProcesses){
+  if (!nvmlDeviceGetComputeRunningProcesses) {
     nvmlDeviceGetComputeRunningProcesses =
         (nvmlReturn_t (*)(nvmlDevice_t, unsigned int*, nvmlProcessInfo_t*))
         dlsym(nvml_handle, "nvmlDeviceGetComputeRunningProcesses_v2");
@@ -271,6 +271,7 @@ bool nvmlmon::load_nvml_lib() {
   }
 
   return true;
+
 load_error:
   dlclose(nvml_handle);
   nvml_handle = nullptr;
