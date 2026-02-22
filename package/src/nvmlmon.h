@@ -28,10 +28,22 @@ typedef struct {
 typedef struct {
   unsigned int pid;
   unsigned long long usedGpuMemory;
-} nvmlProcessInfo_t;
+} nvmlProcessInfo_v1_t;
+
+// NVML process info (v2)
+typedef struct {
+  unsigned int pid;
+  unsigned long long usedGpuMemory;
+  unsigned int gpuInstanceId;
+  unsigned int computeInstanceId;
+} nvmlProcessInfo_v2_t;
+
+// v3 has the same layout as v2 per the official NVML header
+typedef nvmlProcessInfo_v2_t nvmlProcessInfo_v3_t;
 
 class nvmlmon final : public Imonitor, public MessageBase {
  private:
+  // Setup the parameters to monitor here
   const prmon::parameter_list params = {{"ngpus", "1", "1"},
                                         {"gpusmpct", "%", "%"},
                                         {"gpumempct", "%", "%"},
@@ -39,10 +51,10 @@ class nvmlmon final : public Imonitor, public MessageBase {
 
   // Map of classes that represent each monitored quantity
   // Will be initialised from the above parameter list
-  prmon::monitored_list nvidia_stats;
+  prmon::monitored_list nvml_stats;
 
   // Handle to the dynamically loaded libnvidia-ml.so
-  static void *nvml_handle;
+  void* nvml_handle;
 
   // Set to true when NVML is successfully loaded and initialized
   bool valid;
@@ -56,20 +68,20 @@ class nvmlmon final : public Imonitor, public MessageBase {
 
   // Vectors to store utilization and memory info
   std::vector<nvmlProcessUtilizationSample_t> utilization;
-  std::vector<nvmlProcessInfo_t> memory_info;
+  std::vector<nvmlProcessInfo_v3_t> memory_info;
 
   const unsigned int max_samples = 100;
 
-  const unsigned long long B_to_KB = 1024;
+  const unsigned long long BYTES_PER_KB = 1024;
 
-  unsigned long long last_seen_timestamp;
+  unsigned long long last_seen_timestamp{};
 
  public:
   nvmlmon();
   ~nvmlmon();
 
   void update_stats(const std::vector<pid_t>& pids,
-      const std::string read_path = "");
+                    const std::string read_path = "");
 
   prmon::monitored_value_map const get_text_stats();
   prmon::monitored_value_map const get_json_total_stats();
@@ -81,6 +93,6 @@ class nvmlmon final : public Imonitor, public MessageBase {
   void const get_unit_info(nlohmann::json& unit_json);
   bool const is_valid() { return valid; }
 };
-REGISTER_MONITOR(Imonitor, nvmlmon, "Monitor NVIDIA GPU activity")
+REGISTER_MONITOR(Imonitor, nvmlmon, "Monitor NVIDIA GPU activity via NVML")
 
-#endif // PRMON_NVMLMON_H
+#endif  // PRMON_NVMLMON_H

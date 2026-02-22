@@ -36,8 +36,8 @@ nvidiamon::nvidiamon() {
       nvml_test = dlopen("libnvidia-ml.so.1", RTLD_NOW);
     }
     if (nvml_test) {
-      auto init = (int(*)())dlsym(nvml_test, "nvmlInit");
-      auto shutdown = (int(*)())dlsym(nvml_test, "nvmlShutdown");
+      auto init = (int (*)())dlsym(nvml_test, "nvmlInit");
+      auto shutdown = (int (*)())dlsym(nvml_test, "nvmlShutdown");
       if (init && init() == 0) {
         // NVML actually works
         valid = false;
