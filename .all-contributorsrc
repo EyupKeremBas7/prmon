@@ -108,7 +108,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/174049098?v=4",
       "profile": "https://github.com/Siddhant2306",
       "contributions": [
-        "doc"
+        "doc",
+        "code"
       ]
     },
     {
@@ -118,6 +119,24 @@
       "profile": "https://github.com/EyupKeremBas7",
       "contributions": [
         "doc"
+      ]
+    },
+    {
+      "login": "utkarshasinha",
+      "name": "utkarshasinha",
+      "avatar_url": "https://avatars.githubusercontent.com/u/193846712?v=4",
+      "profile": "https://github.com/utkarshasinha",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "iareARiES",
+      "name": "Aditya ",
+      "avatar_url": "https://avatars.githubusercontent.com/u/147093410?v=4",
+      "profile": "https://github.com/iareARiES",
+      "contributions": [
+        "code"
       ]
     }
   ],
